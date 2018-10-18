@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#SBATCH --time=1
+
+module load R
+srun R CMD BATCH test.r output.txt

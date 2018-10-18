@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set +C
+
+CORE_COMMANDS="bash bash-completion coreutils findutils tmux"
+NETWORK_COMMANDS="curl openssh ssh-copy-id rsync"
+
+function prompt {
+  read -s -n 1 -p "$1 [Y/n]? "
+  [[ ! "$REPLY" =~ ^[nN]$ ]] || { echo "n"; return 1; }
+  echo "y"
+}
+
+function action {
+  eval "$2" || { echo "❌ $1"; return 1; }
+  echo "✅ $1"
+}
+
+function ensure {
+  action "$1" "$2" || {
+    echo "Installing $1..."
+    action "$1 installation" "$3" || exit
+    return 1
+  }
+}
+
+echo -n "Checking for Xcode command line tools..."
+xcode-select -p > /dev/null || {
+  echo "❌"
+  echo "Installing Xcode command line tools..."
+  xcode-select --install
+}
+
+ensure "Xcode" \
+       "xcode-select -p > /dev/null" \
+       "xcode-select --install" || reload
+ensure "Homebrew" \
+       "which brew > /dev/null" \
+       "ruby -e \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\"" || reload
+ensure "Core commands" \
+       "brew ls --versions $CORE_COMMANDS > /dev/null" \
+       "brew install $CORE_COMMANDS"
+ensure "Network commands" \
+       "brew ls --versions $NETWORK_COMMANDS > /dev/null" \
+       "brew install $NETWORK_COMMANDS"
+
+which node > /dev/null || {
+  ! prompt "Install node (recommended)" || brew install node
+}
+which r > /dev/null || {
+  ! prompt "Install R (optional)" || brew install r
+}
+
+action "Clean up" "brew prune"
+
+action "copy .bash_profile" "cp .bash_profile ~"
+echo "setup complete, please restart your shell"
